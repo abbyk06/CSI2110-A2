@@ -2,22 +2,20 @@
 // Startup code given in the Fall 2025 for csi2110/csi2510
 // This file only contains basic commands to read the data from the input file 'metro.txt'
 // Use and modify it freely
-// 
-// Do not forget to add your name and student number on each program file you submit
 //
+// Do not forget to add your name and student number on each program file you submit
+//Name : Abigail Kim
+//Student number : 300422108
 
 import java.io.*;
 import java.util.*;
 import java.util.Scanner;
-
 
 public class ParisMetro {
 
     public static void main (String[] args) {
         readMetro();
     }
-
-
 
     public static void readMetro()
     {
@@ -42,10 +40,10 @@ public class ParisMetro {
         {
             int v1=scan.nextInt(); int v2=scan.nextInt(); int weight=scan.nextInt(); // edge information
             //System.out.println("v1="+v1+" v2="+v2+" weight="+weight);
-  
+
         }
 
-       System.out.println("End Reading Metro\n");
+    System.out.println("End Reading Metro\n");
     }
 
 
