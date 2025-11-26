@@ -94,7 +94,10 @@ public class ParisMetro {
             if (u == null || v == null) continue;
 
             adj.get(u).add(new Edge(v,weight));
-            if (weight==-1) walkEdges.add(new int[]{u,v});
+            if (weight==-1){
+                walkEdges.add(new int[]{u,v});
+                walkEdges.add(new int[]{v,u});
+            }
         }
         System.out.println("End Reading Metro\n");
     }
@@ -108,42 +111,66 @@ public class ParisMetro {
 
         UnionFind uf = new UnionFind(n);
         for (int[] e : walkEdges){
-            int u = e[0];
-            int v = e[1];
-            if (degree[u]>=3 || degree[v]>=3){
-                uf.union(u,v);
+            int a = e[0];
+            int b = e[1];
+            uf.union(a,b);
+        }
+
+        HashMap<Integer,Integer> hubIdx = new HashMap<>();
+        for (int i = 0; i < n; i++){
+            if (degree[i] >= 3){
+                int root = uf.find(i);
+                if (!hubIdx.containsKey(root)){
+                    hubIdx.put(root, hubIdx.size());
+                }
             }
         }
 
-        hubCount = 0;
+        hubCount = hubIdx.size();
         hubMems.clear();
         hubNames.clear();
 
-        HashMap<Integer, Integer> hubIdx = new HashMap<>();
+        for (int i=0; i<hubCount; i++){
+            hubMems.add(new ArrayList<>());
+        }
 
-        for (int i = 0; i < n; i++) {
-            int root = uf.find(i);
-                if (!hubIdx.containsKey(root)) {
-                    hubIdx.put(root, hubCount++);
-                    hubMems.add(new ArrayList<>());
-                }
-                hubMems.get(hubIdx.get(root)).add(i);
+        HashMap<Integer,Integer> rootToFinalIdx = new HashMap<>();
+        int idx = 0;
+        for (Integer root : hubIdx.keySet()){
+            rootToFinalIdx.put(root, idx++);
+        }
+        hubCount = idx;
+
+        for (int v = 0; v < n; v++){
+            int root = uf.find(v);
+            if (rootToFinalIdx.containsKey(root)){
+                int hid = rootToFinalIdx.get(root);
+                hubMems.get(hid).add(v);
             }
-
+        }
         vertexToHub = new int[n];
-        Arrays.fill(vertexToHub, -1);
 
-        for (int i = 0; i < hubCount; i++) {
-            int repr = hubMems.get(i).get(0);
+        
+        Arrays.fill(vertexToHub, -1);
+        for (int h = 0; h < hubCount; h++){
+            int repr = hubMems.get(h).get(0);
             hubNames.add(indexName.get(repr));
-            for (int v : hubMems.get(i)) vertexToHub[v] = i;
-        }
-        int totalHubVertices = 0;
-        for (int v : vertexToHub){
-            if (v!=-1){
-                totalHubVertices++;
+            for (int v : hubMems.get(h)){
+                vertexToHub[v] = h;
             }
         }
+
+        System.out.println("DEBUG: Hub sizes (index:size, repr name):");
+        for (int h = 0; h < hubCount; h++){
+            int repr = hubMems.get(h).get(0);
+            System.out.println("  " + h + ":" + hubMems.get(h).size() + " -> " + indexName.get(repr));
+        }
+
+        int totalHubVertices = 0;
+        for (int v = 0; v < n; v++){
+            if (vertexToHub[v] != -1) totalHubVertices++;
+        }
+
         System.out.println("Hub Stations = "+ hubNames);
         System.out.println("Number of Hub Stations = " + hubCount+" (total Hub Vertices = " + totalHubVertices + ")");
     }
