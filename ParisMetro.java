@@ -8,43 +8,253 @@
 //Student number : 300422108
 
 import java.io.*;
+import java.nio.channels.Pipe.SourceChannel;
 import java.util.*;
-import java.util.Scanner;
+import javax.sound.sampled.SourceDataLine;
 
 public class ParisMetro {
+    int n, m;
+    HashMap<Integer, Integer> idToIndex = new HashMap<>();
+    ArrayList<String> indexName = new ArrayList<>();
+    ArrayList<ArrayList<Edge>> adj = new ArrayList<>();
+    ArrayList<int[]> walkEdges = new ArrayList<>();
+    HashMap<Long, Integer> bestSeg = new HashMap<>();
+    ArrayList<ArrayList<Integer>> hubMems = new ArrayList<>();
+    ArrayList<String> hubNames = new ArrayList<>();
+    int[] vertexToHub;
+    int hubCount = 0;
+    ArrayList<EdgeHub> hubEdges = new ArrayList<>();
+    ArrayList<EdgeHub> mst = new ArrayList<>();
+    int totalCost = 0;
+
 
     public static void main (String[] args) {
-        readMetro();
+        ParisMetro metro = new ParisMetro();
+        metro.loadInput();
+        metro.buildHubs();
+        metro.computeSegments();
+        metro.buildMST();
+        metro.printResults();
     }
 
-    public static void readMetro()
-    {
-
+    void loadInput(){
         System.out.println("\nStart Reading Metro");
-        Scanner scan = new Scanner(System.in); 
-
-        int n = scan.nextInt(); // number of vertices
-        int m = scan.nextInt(); // number of edges
+        Scanner scan = new Scanner(System.in);
+        n = scan.nextInt(); // number of vertices
+        m = scan.nextInt(); // number of edges
         System.out.println("Paris Metro Graph has "+n+" vertices and "+m+" edges.");
-        
+        scan.nextLine(); // new line
 
-        for (int i=0; i <n; i++)
-        {   int vertexNumber=Integer.valueOf(scan.next()); // vertex number (unique, example: 0016)
-            String stationName=scan.nextLine(); 	    // vertex name (not unique, example: Bastille)
+        //vertices
+        for (int i=0; i <n; i++){
+            if (!scan.hasNextLine()){
+                break;
+            }
+            String vertexBefore = scan.next().trim();//vertex as string
+            if (vertexBefore.equals("$")){
+                break;
+            }
+            int vertexNumber = Integer.parseInt(vertexBefore); // vertex number
+            scan.nextLine(); // new line
+            if (!scan.hasNextLine()){
+                break;
+            }
+            String stationName = scan.nextLine().trim();
+
             //System.out.println(vertexNumber+" "+stationName);
+
+            idToIndex.put(vertexNumber, indexName.size());
+            indexName.add(stationName);
+            adj.add(new ArrayList<>());
         }
 
-        scan.nextLine();//read the $ sign 
+        n=indexName.size();
 
-        for (int i=0; i <m; i++)
-        {
-            int v1=scan.nextInt(); int v2=scan.nextInt(); int weight=scan.nextInt(); // edge information
+        while (scan.hasNextLine()){
+            String l = scan.nextLine().trim();
+            if (l.equals("$")){
+                break;
+            }
+        }
+
+        for (int i=0; i <m; i++){
+            if (!scan.hasNextInt()){
+                break;
+            }
+            int v1=scan.nextInt();
+            if (!scan.hasNextInt()){
+                break;
+            }
+            int v2=scan.nextInt();
+            if (!scan.hasNextInt()){
+                break;
+            }
+            int weight=scan.nextInt(); // edge information
+
             //System.out.println("v1="+v1+" v2="+v2+" weight="+weight);
+            Integer u = idToIndex.get(v1);
+            Integer v = idToIndex.get(v2);
 
+            adj.get(u).add(new Edge(v,weight));
+            if (weight==-1) walkEdges.add(new int[]{u,v});
         }
-
-    System.out.println("End Reading Metro\n");
+        System.out.println("End Reading Metro\n");
     }
 
+    void buildHubs(){
+    UnionFind uf = new UnionFind(n);
+        for (int[] e : walkEdges) uf.union(e[0], e[1]); // connect walkable stations
 
+        HashMap<Integer, Integer> hubIdx = new HashMap<>();
+
+        for (int i = 0; i < n; i++) {
+            int root = uf.find(i);
+            if (!hubIdx.containsKey(root)) {
+                hubIdx.put(root, hubCount++);
+                hubMems.add(new ArrayList<>());
+            }
+            hubMems.get(hubIdx.get(root)).add(i);
+        }
+
+        vertexToHub = new int[n];
+        Arrays.fill(vertexToHub, -1);
+
+        for (int i = 0; i < hubCount; i++) {
+            int repr = hubMems.get(i).get(0);
+            hubNames.add(indexName.get(repr));
+            for (int v : hubMems.get(i)) vertexToHub[v] = i;
+        }
+        System.out.println("Hub Stations = "+ hubNames);
+        System.out.println("Number of Hub Stations = " + hubCount+" (total Hub Vertices = " + n + ")");
+    }
+
+    void computeSegments(){
+        for (int hub1 = 0; hub1<hubCount; hub1++){
+            for (int s : hubMems.get(hub1)){
+                dijkstra(s, hub1, hubMems, adj, bestSeg, vertexToHub);
+            }
+        }
+        System.out.println("Number of Possible Segments = " + bestSeg.size());
+    }
+
+    void dijkstra(int s, int hubA, ArrayList<ArrayList<Integer>> hubMems,
+            ArrayList<ArrayList<Edge>> adj, HashMap<Long,Integer> bestSeg, int[] vertexToHub) {
+        int n = adj.size();
+        int[] dist = new int[n];
+        Arrays.fill(dist, Integer.MAX_VALUE/4);
+        PriorityQueue<int[]> pq = new PriorityQueue<>(Comparator.comparingInt(a->a[1]));
+        dist[s] = 0;
+        pq.add(new int[]{s,0});
+
+        while(!pq.isEmpty()){
+            int[] current = pq.poll();
+            int u = current[0];
+            int du = current[1];
+            if (du>dist[u]){
+                continue;
+            }
+            int hubU = vertexToHub[u];
+
+            if (hubU!= -1 && hubU!= hubA){
+                long key = ((long) Math.min(hubA, hubU)<<32) | Math.max(hubA, hubU);
+                bestSeg.put(key, Math.min(bestSeg.getOrDefault(key, Integer.MAX_VALUE), du));
+                ;
+            }
+            for (Edge e: adj.get(u)){
+                if (e.w<=0) continue;
+                int v = e.v;
+                int nd = du+e.w;
+                if (nd< dist[v]){
+                    dist[v] = nd;
+                    pq.add(new int[]{v,nd});
+                }
+            }
+        }
+    }
+
+    void buildMST(){
+        ArrayList<EdgeHub> hubEdges = new ArrayList<>();
+        for (Long key : bestSeg.keySet()){
+            int a = (int) (key>>32);
+            int b=(int) (key & 0xffffffff);
+            hubEdges.add(new EdgeHub(a,b,bestSeg.get(key)));
+        }
+
+        Collections.sort(hubEdges);
+        UnionFind ufHub = new UnionFind (hubCount);
+        mst = new ArrayList<>();
+        totalCost = 0;
+
+        for (EdgeHub e : hubEdges){
+            if (ufHub.find(e.u)!= ufHub.find(e.v)){
+                ufHub.union(e.u, e.v);
+                mst.add(e);
+                totalCost+=e.w;
+            }
+        }
+    }
+
+    void printResults(){
+        System.out.println("Total Cost = $" + totalCost);
+        System.out.println("Segments to Buy:");
+        int count =1;
+        for (EdgeHub e: mst){
+            System.out.println(count++ + "(" + hubNames.get(e.u) + " - " + hubNames.get(e.v) + ") - $" + e.w);
+        }
+    }
+
+static class Edge{
+    int v;
+    int w;
+    Edge (int v, int w){
+        this.v = v;
+        this.w = w;
+    }
+}
+
+static class EdgeHub implements Comparable<EdgeHub>{
+    int u;
+    int v;
+    int w;
+    EdgeHub(int u, int v, int w){
+        this.u = u;
+        this.v = v;
+        this.w=w;
+    }
+    public int compareTo(EdgeHub other){
+        return Integer.compare(this.w, other.w);
+    }
+}
+
+static class UnionFind{
+    int[] parent;
+    int[] rank;
+    UnionFind(int n){
+        parent = new int[n];
+        rank = new int[n];
+        for (int i=0; i<n; i++){
+            parent[i] =i;
+        }
+    }
+    int find (int x){
+        return parent[x] ==x? x: (parent[x] = find(parent[x]));
+    }
+
+    void union(int x, int y){
+        x = find(x);
+        y = find(y);
+        if (x==y) return;
+        if (rank[x] <rank[y]){
+            parent[x] = y;
+        }
+        else if (rank[x]>rank[y]){
+            parent[y] = x;
+        }
+        else{
+            parent[y] = x;
+            rank[x]++;
+        }
+    }
+    
+}
 }

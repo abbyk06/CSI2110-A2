@@ -16,7 +16,7 @@ import java.util.HashMap;
 
 class Main {
 
-    static void main (String[] args) {
+    public static void main (String[] args) {
       Scanner scanner = new Scanner(System.in); // Note that for Online Judge the input must be given in the standard I/O
             // to read from input files use the command 'java Main < test1.txt', test1.txt should be in the same folder
 
