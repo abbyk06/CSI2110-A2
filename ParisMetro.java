@@ -55,10 +55,7 @@ public class ParisMetro {
                 break;
             }
             int vertexNumber = Integer.parseInt(vertexBefore); // vertex number
-            scan.nextLine(); // new line
-            if (!scan.hasNextLine()){
-                break;
-            }
+            
             String stationName = scan.nextLine().trim();
 
             //System.out.println(vertexNumber+" "+stationName);
@@ -94,6 +91,7 @@ public class ParisMetro {
             //System.out.println("v1="+v1+" v2="+v2+" weight="+weight);
             Integer u = idToIndex.get(v1);
             Integer v = idToIndex.get(v2);
+            if (u == null || v == null) continue;
 
             adj.get(u).add(new Edge(v,weight));
             if (weight==-1) walkEdges.add(new int[]{u,v});
@@ -102,19 +100,35 @@ public class ParisMetro {
     }
 
     void buildHubs(){
-    UnionFind uf = new UnionFind(n);
-        for (int[] e : walkEdges) uf.union(e[0], e[1]); // connect walkable stations
+        int[] degree = new int[n];
+        for (int i = 0; i < n; i++) {
+            degree[i] = adj.get(i).size();
+        }
+    
+
+        UnionFind uf = new UnionFind(n);
+        for (int[] e : walkEdges){
+            int u = e[0];
+            int v = e[1];
+            if (degree[u]>=3 || degree[v]>=3){
+                uf.union(u,v);
+            }
+        }
+
+        hubCount = 0;
+        hubMems.clear();
+        hubNames.clear();
 
         HashMap<Integer, Integer> hubIdx = new HashMap<>();
 
         for (int i = 0; i < n; i++) {
             int root = uf.find(i);
-            if (!hubIdx.containsKey(root)) {
-                hubIdx.put(root, hubCount++);
-                hubMems.add(new ArrayList<>());
+                if (!hubIdx.containsKey(root)) {
+                    hubIdx.put(root, hubCount++);
+                    hubMems.add(new ArrayList<>());
+                }
+                hubMems.get(hubIdx.get(root)).add(i);
             }
-            hubMems.get(hubIdx.get(root)).add(i);
-        }
 
         vertexToHub = new int[n];
         Arrays.fill(vertexToHub, -1);
@@ -124,21 +138,27 @@ public class ParisMetro {
             hubNames.add(indexName.get(repr));
             for (int v : hubMems.get(i)) vertexToHub[v] = i;
         }
+        int totalHubVertices = 0;
+        for (int v : vertexToHub){
+            if (v!=-1){
+                totalHubVertices++;
+            }
+        }
         System.out.println("Hub Stations = "+ hubNames);
-        System.out.println("Number of Hub Stations = " + hubCount+" (total Hub Vertices = " + n + ")");
+        System.out.println("Number of Hub Stations = " + hubCount+" (total Hub Vertices = " + totalHubVertices + ")");
     }
 
     void computeSegments(){
+        bestSeg.clear();
         for (int hub1 = 0; hub1<hubCount; hub1++){
             for (int s : hubMems.get(hub1)){
-                dijkstra(s, hub1, hubMems, adj, bestSeg, vertexToHub);
+                dijkstra(s, hub1);
             }
         }
         System.out.println("Number of Possible Segments = " + bestSeg.size());
     }
 
-    void dijkstra(int s, int hubA, ArrayList<ArrayList<Integer>> hubMems,
-            ArrayList<ArrayList<Edge>> adj, HashMap<Long,Integer> bestSeg, int[] vertexToHub) {
+    void dijkstra(int s, int hubA) {
         int n = adj.size();
         int[] dist = new int[n];
         Arrays.fill(dist, Integer.MAX_VALUE/4);
@@ -158,12 +178,15 @@ public class ParisMetro {
             if (hubU!= -1 && hubU!= hubA){
                 long key = ((long) Math.min(hubA, hubU)<<32) | Math.max(hubA, hubU);
                 bestSeg.put(key, Math.min(bestSeg.getOrDefault(key, Integer.MAX_VALUE), du));
-                ;
+                continue;
             }
             for (Edge e: adj.get(u)){
-                if (e.w<=0) continue;
                 int v = e.v;
-                int nd = du+e.w;
+                int w = e.w;
+                if (w<=0){
+                    w=1;
+                }
+                int nd = du+w;
                 if (nd< dist[v]){
                     dist[v] = nd;
                     pq.add(new int[]{v,nd});
