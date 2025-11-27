@@ -239,6 +239,11 @@ public class ParisMetro {
     }
 
     void printResults(){
+
+        if (totalCost==-1){
+            System.out.println("Impossible");
+            return;
+        }
         System.out.println("Total Cost = $" + totalCost);
         System.out.println("Segments to Buy:");
         int count =1;
