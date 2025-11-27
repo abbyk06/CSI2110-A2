@@ -38,11 +38,10 @@ public class ParisMetro {
     }
 
     void loadInput(){
-        System.out.println("\nStart Reading Metro");
         Scanner scan = new Scanner(System.in);
         n = scan.nextInt(); // number of vertices
         m = scan.nextInt(); // number of edges
-        System.out.println("Paris Metro Graph has "+n+" vertices and "+m+" edges.");
+        System.out.println("Paris Metro Graph has "+n+" vertices and "+m+" edges." + "\n");
         scan.nextLine(); // new line
 
         //vertices
@@ -99,7 +98,6 @@ public class ParisMetro {
                 walkEdges.add(new int[]{v,u});
             }
         }
-        System.out.println("End Reading Metro\n");
     }
 
     void buildHubs(){
@@ -107,8 +105,6 @@ public class ParisMetro {
         for (int i = 0; i < n; i++) {
             degree[i] = adj.get(i).size();
         }
-    
-
         UnionFind uf = new UnionFind(n);
         for (int[] e : walkEdges){
             int a = e[0];
@@ -116,13 +112,13 @@ public class ParisMetro {
             uf.union(a,b);
         }
 
-        HashMap<Integer,Integer> hubIdx = new HashMap<>();
+        HashSet<Integer> seen = new HashSet<>();
+        HashSet<Integer> hubIdx = new HashSet<>();
         for (int i = 0; i < n; i++){
-            if (degree[i] >= 3){
-                int root = uf.find(i);
-                if (!hubIdx.containsKey(root)){
-                    hubIdx.put(root, hubIdx.size());
-                }
+            int root = uf.find(i);
+            if (degree[i] >= 3 && !seen.contains(root)){
+                hubIdx.add(root);
+                seen.add(root);
             }
         }
 
@@ -136,43 +132,41 @@ public class ParisMetro {
 
         HashMap<Integer,Integer> rootToFinalIdx = new HashMap<>();
         int idx = 0;
-        for (Integer root : hubIdx.keySet()){
+        for (int root : hubIdx ){
             rootToFinalIdx.put(root, idx++);
         }
         hubCount = idx;
+
+        vertexToHub = new int[n];
+        Arrays.fill(vertexToHub, -1);
 
         for (int v = 0; v < n; v++){
             int root = uf.find(v);
             if (rootToFinalIdx.containsKey(root)){
                 int hid = rootToFinalIdx.get(root);
                 hubMems.get(hid).add(v);
-            }
-        }
-        vertexToHub = new int[n];
-
-        
-        Arrays.fill(vertexToHub, -1);
-        for (int h = 0; h < hubCount; h++){
-            int repr = hubMems.get(h).get(0);
-            hubNames.add(indexName.get(repr));
-            for (int v : hubMems.get(h)){
-                vertexToHub[v] = h;
+                vertexToHub[v]=hid;
             }
         }
 
-        System.out.println("DEBUG: Hub sizes (index:size, repr name):");
         for (int h = 0; h < hubCount; h++){
             int repr = hubMems.get(h).get(0);
-            System.out.println("  " + h + ":" + hubMems.get(h).size() + " -> " + indexName.get(repr));
+            String hubName = indexName.get(repr);
+            if (!hubNames.contains(hubName)) {
+                hubNames.add(hubName);
+            }
+            for (int vp : hubMems.get(h)){
+                vertexToHub[vp] = h;
+            }
         }
 
         int totalHubVertices = 0;
-        for (int v = 0; v < n; v++){
-            if (vertexToHub[v] != -1) totalHubVertices++;
+        for (int vt = 0; vt < n; vt++){
+            if (vertexToHub[vt] != -1) totalHubVertices++;
         }
 
-        System.out.println("Hub Stations = "+ hubNames);
-        System.out.println("Number of Hub Stations = " + hubCount+" (total Hub Vertices = " + totalHubVertices + ")");
+        System.out.println("Hub Stations = "+ hubNames + "\n");
+        System.out.println("Number of Hub Stations = " + hubCount+" (total Hub Vertices = " + totalHubVertices + ")" + "\n");
     }
 
     void computeSegments(){
@@ -182,7 +176,7 @@ public class ParisMetro {
                 dijkstra(s, hub1);
             }
         }
-        System.out.println("Number of Possible Segments = " + bestSeg.size());
+        System.out.println("Number of Possible Segments = " + bestSeg.size() +"\n");
     }
 
     void dijkstra(int s, int hubA) {
@@ -249,7 +243,7 @@ public class ParisMetro {
         System.out.println("Segments to Buy:");
         int count =1;
         for (EdgeHub e: mst){
-            System.out.println(count++ + "(" + hubNames.get(e.u) + " - " + hubNames.get(e.v) + ") - $" + e.w);
+            System.out.println(count++ + "(" + hubNames.get(e.u) + " - " + hubNames.get(e.v) + " ) - $" + e.w);
         }
     }
 
@@ -305,6 +299,6 @@ static class UnionFind{
             rank[x]++;
         }
     }
-    
 }
 }
+
